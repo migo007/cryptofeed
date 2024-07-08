@@ -83,7 +83,9 @@ setup(
         "yapic.json>=1.6.3",
         'uvloop ; platform_system!="Windows"',
         "order_book>=0.6.0",
-        "aiodns>=1.1"  # aiodns speeds up DNS resolving
+        "aiodns>=1.1",  # aiodns speeds up DNS resolving
+        "PyJWT>=2.8.0",
+        "cryptography>=42.0.8"
     ],
     extras_require={
         "arctic": ["arctic", "pandas"],
