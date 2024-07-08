@@ -47,6 +47,7 @@ from .okcoin import OKCoin
 from .poloniex import Poloniex
 from .probit import Probit
 from .upbit import Upbit
+from .coinbase_advanced import CoinbaseAdvanced
 
 # Maps string name to class name for use with config
 EXCHANGE_MAP = {
@@ -69,6 +70,7 @@ EXCHANGE_MAP = {
     BLOCKCHAIN: Blockchain,
     BYBIT: Bybit,
     COINBASE: Coinbase,
+    COINBASE_ADVANCED: CoinbaseAdvanced,
     CRYPTODOTCOM: CryptoDotCom,
     DERIBIT: Deribit,
     DELTA: Delta,
