@@ -35,10 +35,11 @@ LOG = logging.getLogger('feedhandler')
 def generate_jwt_token(config: Config, rest_api: bool = False, endpoint: str = None) -> dict:
     key_id, key_secret = config["coinbase"]["key_id"], config["coinbase"]["key_secret"]
     timestamp = int(time.time())
+    message = None
     if rest_api:
-        base_endpoint = '/api/v3/brokerage/'
+        base_endpoint = 'api.coinbase.com'
         endpoint = base_endpoint + endpoint
-        message = f'{timestamp}GET{endpoint}'
+        message = f'GET {endpoint}'
     try:
         private_key_bytes = key_secret.encode("utf-8")
         private_key = serialization.load_pem_private_key(
@@ -56,7 +57,7 @@ def generate_jwt_token(config: Config, rest_api: bool = False, endpoint: str = N
         "exp": int(time.time()) + 120,
     }
 
-    if endpoint and rest_api:
+    if message:
         jwt_data["uri"] = message
 
     jwt_token = jwt.encode(
@@ -66,11 +67,12 @@ def generate_jwt_token(config: Config, rest_api: bool = False, endpoint: str = N
         headers={"kid": key_id, "nonce": secrets.token_hex()},
     )
 
+    LOG.debug(f"Generated JWT token: {jwt_token}")
+    print(jwt_token)
     return jwt_token
 
-def generate_jwt_headers(config: Config, chan: str = None, product_ids_str: list = None,
-                            rest_api: bool = False, endpoint: str = None) -> dict:
-    jwt_token = generate_jwt_token(config, chan, product_ids_str, rest_api, endpoint)
+def generate_jwt_headers(config: Config, rest_api: bool = False, endpoint: str = None) -> dict:
+    jwt_token = generate_jwt_token(config, rest_api, endpoint)
     
     if jwt_token is None or jwt_token == "":
         raise Exception("Failed to generate JWT token")
@@ -85,7 +87,7 @@ def generate_jwt_headers(config: Config, chan: str = None, product_ids_str: list
     }
 
 
-class CoinbaseAdvanced(Feed, CoinbaseRestMixin):
+class CoinbaseAdvanced(CoinbaseRestMixin, Feed):
     id = COINBASE_ADVANCED
     websocket_endpoints = [WebsocketEndpoint('wss://advanced-trade-ws.coinbase.com', options={'compression': None})]
     rest_endpoints = [
@@ -110,15 +112,28 @@ class CoinbaseAdvanced(Feed, CoinbaseRestMixin):
             ret[sym.normalized] = entry['product_id']
         return ret, info
 
+    
+    @classmethod
+    def symbol_mapping(cls, refresh=False, headers: dict = None) -> Dict:
+        config = Config(config="config.yaml")
+        if headers is None:
+            headers = generate_jwt_headers(config, rest_api=True, endpoint='/api/v3/brokerage/products')
+        super().symbol_mapping(refresh=refresh, headers=headers)
+    
+
     @classmethod
     def symbols(cls, config: dict = None, refresh=False) -> list:
         config = Config(config)
         if 'coinbase' not in config or 'key_id' not in config['coinbase'] or 'key_secret' not in config['coinbase']:
             raise ValueError('You must provide key_id and key_secret in config to retrieve symbols from Coinbase.')
-        headers = generate_jwt_headers(config, rest_api=True, endpoint='products')
+        headers = generate_jwt_headers(config, rest_api=True, endpoint='/api/v3/brokerage/products')
         return list(cls.symbol_mapping(refresh=refresh, headers=headers).keys())
 
+    def _generate_signature(self, endpoint: str, method: str, body=''):
+        return generate_jwt_headers({"key_id": self.key_id, "key_secret": self.key_secret}, endpoint, method, body)
+
     def __init__(self, callbacks=None, **kwargs):
+        self.config = Config(config="config.yaml")
         super().__init__(callbacks=callbacks, **kwargs)
         self.__reset()
 
@@ -212,11 +227,12 @@ class CoinbaseAdvanced(Feed, CoinbaseRestMixin):
         all_pairs = list()
 
         async def _subscribe(chan: str, product_ids: list):
+            config = Config(config="config.yaml")
             params = {"type": "subscribe",
                       "product_ids": product_ids,
                       "channel": chan
                       }
-            private_params = {"jwt": generate_jwt_token(config=self.config)}
+            private_params = {"jwt": generate_jwt_token(config=config)}
             if private_params:
                 params = {**params, **private_params}
             await conn.write(json.dumps(params))
