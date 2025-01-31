@@ -5,7 +5,8 @@ cython
 order_book==0.6.1
 pyyaml
 requests>=2.18.4
-websockets>=7.0
+uvloop
+websockets>=14.1
 yapic.json>=1.6.3
 PyJWT>=2.8.0
 cryptography>=42.0.8

@@ -76,9 +76,9 @@ setup(
     tests_require=["pytest"],
     install_requires=[
         "requests>=2.18.4",
-        "websockets>=10.0",
+        "websockets>=14.1",
         "pyyaml",
-        "aiohttp>=3.9.4",
+        "aiohttp>=3.11.6",
         "aiofile>=2.0.0",
         "yapic.json>=1.6.3",
         'uvloop ; platform_system!="Windows"',
